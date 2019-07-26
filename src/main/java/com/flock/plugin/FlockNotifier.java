@@ -70,14 +70,25 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-        listener.getLogger().println("Build started");
-        createPayload(build, true);
+        if (isNotifyOnStart()) {
+            createPayload(build, true);
+        }
         return super.prebuild(build, listener);
     }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        sendNotification(build, false);
+        if (
+                (isNotifyOnSuccess() && build.getResult() == Result.SUCCESS) ||
+                        (isNotifyOnAborted() && build.getResult() == Result.ABORTED) ||
+                        (isNotifyOnFailure() && build.getResult() == Result.FAILURE) ||
+                        (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT) ||
+                        (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
+
+        ) {
+            sendNotification(build, false);
+        }
+
         return true;
     }
 
@@ -89,6 +100,29 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         } catch (IOException e) {
             System.out.println("Ran into an IOException" + e.getLocalizedMessage());
         }
+    }
+
+    private JSONObject createPayload(AbstractBuild build, boolean buildStarted) {
+        JSONObject jsonObject= new JSONObject();
+        String runUrl = build.getUrl();
+        String status;
+        if (buildStarted) {
+            status = "STARTED";
+        } else {
+            status = build.getResult().toString();
+        }
+
+        jsonObject.put("projectName", build.getProject().getDisplayName());
+        jsonObject.put("displayName", build.getDisplayName());
+
+        jsonObject.put("status", status);
+        jsonObject.put("duration", build.getDurationString());
+        jsonObject.put("runURL", runUrl);
+
+        jsonObject.put("changes", getChanges(build));
+        jsonObject.put("causeAction", getCauses(build));
+
+        return jsonObject;
     }
 
     private void makeRequest(JSONObject payload) throws IOException {
@@ -126,29 +160,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         } else {
             System.out.println("POST request not worked");
         }
-    }
-
-    private JSONObject createPayload(AbstractBuild build, boolean buildStarted) {
-        JSONObject jsonObject= new JSONObject();
-        String runUrl = build.getUrl();
-        String status = new String();
-        if (buildStarted) {
-            status = "STARTED";
-        } else {
-            status = build.getResult().toString();
-        }
-
-        jsonObject.put("projectName", build.getProject().getDisplayName());
-        jsonObject.put("displayName", build.getDisplayName());
-
-        jsonObject.put("status", status);
-        jsonObject.put("duration", build.getDurationString());
-        jsonObject.put("runURL", runUrl);
-
-        jsonObject.put("changes", getChanges(build));
-        jsonObject.put("causeAction", getCauses(build));
-
-        return jsonObject;
     }
 
     private JSONObject getCauses(AbstractBuild b) {
