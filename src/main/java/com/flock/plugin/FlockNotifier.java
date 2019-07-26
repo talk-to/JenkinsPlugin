@@ -144,10 +144,10 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         jsonObject.put("status", status);
         jsonObject.put("duration", build.getDurationString());
         jsonObject.put("runURL", runUrl);
-//        jsonObject.put("causeAction", causesString);
 
-        JSONObject changes = getChanges(build);
-        jsonObject.put("changes", changes);
+        jsonObject.put("changes", getChanges(build));
+        jsonObject.put("causeAction", getCauses(build));
+
         return jsonObject;
     }
 
@@ -162,11 +162,11 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return jsonObject;
     }
 
-    JSONObject getChanges(AbstractBuild r) {
-        if (!r.hasChangeSetComputed()) {
+    JSONObject getChanges(AbstractBuild build) {
+        if (!build.hasChangeSetComputed()) {
             return null; // FIXME: Check when no-changeset will be there. Author and files changes should be present
         }
-        ChangeLogSet changeSet = r.getChangeSet();
+        ChangeLogSet changeSet = build.getChangeSet();
         List<Entry> entries = new LinkedList<>();
         Set<AffectedFile> files = new HashSet<>();
         for (Object o : changeSet.getItems()) {
