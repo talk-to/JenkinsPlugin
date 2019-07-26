@@ -1,15 +1,16 @@
 package com.flock.plugin;
 
-import groovy.json.JsonOutput;
-import hudson.Launcher;
 import hudson.Extension;
+import hudson.Launcher;
 import hudson.model.*;
 import hudson.scm.ChangeLogSet.Entry;
+import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
-import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -20,9 +21,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-
-import org.jenkinsci.Symbol;
-import org.kohsuke.stapler.StaplerRequest;
 
 public class FlockNotifier extends hudson.tasks.Recorder {
 
@@ -175,7 +173,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         JSONObject json = new JSONObject();
         json.put("authors", authors);
         json.put("filesCount", affectedPaths.size());
-
         return json;
     }
 
