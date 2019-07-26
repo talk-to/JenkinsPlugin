@@ -17,14 +17,39 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private String webhookUrl;
 
+    private boolean notifyOnStart;
+    private boolean notifyOnSuccess;
+    private boolean notifyOnUnstable;
+    private boolean notifyOnAborted;
+    private boolean notifyOnFailure;
+    private boolean notifyOnNotBuilt;
+
     @DataBoundConstructor
-    public FlockNotifier(String webhookUrl) {
+    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt) {
         this.webhookUrl = webhookUrl;
+        this.notifyOnStart = notifyOnStart;
+        this.notifyOnSuccess = notifyOnSuccess;
+        this.notifyOnUnstable = notifyOnUnstable;
+        this.notifyOnAborted = notifyOnAborted;
+        this.notifyOnFailure = notifyOnFailure;
+        this.notifyOnNotBuilt = notifyOnNotBuilt;
     }
 
     public String getWebhookUrl() {
         return webhookUrl;
     }
+
+    public Boolean isNotifyOnStart() { return notifyOnStart; }
+
+    public boolean isNotifyOnSuccess() { return notifyOnSuccess; }
+
+    public boolean isNotifyOnUnstable() { return notifyOnUnstable; }
+
+    public boolean isNotifyOnAborted() { return notifyOnAborted; }
+
+    public boolean isNotifyOnFailure() { return notifyOnFailure; }
+
+    public boolean isNotifyOnNotBuilt() { return notifyOnNotBuilt; }
 
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
