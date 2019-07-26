@@ -9,6 +9,15 @@ import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import java.io.IOException;
+import hudson.scm.ChangeLogSet.*;
+import hudson.scm.ChangeLogSet;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import org.apache.commons.collections.CollectionUtils;
+
+
 
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.StaplerRequest;
@@ -28,21 +37,75 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-        if (build.isBuilding()) {
-            listener.getLogger().println("Build started");
-        }
-
+        listener.getLogger().println("Build started");
         return super.prebuild(build, listener);
     }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        if (build.getResult() == Result.SUCCESS) {
-            listener.getLogger().println("Build Successful, build number: " + build.number + "!");
-        } else {
-            listener.getLogger().println("Build Failed, build number: " + build.number + "!");
-        }
+        sendNotification(build);
         return true;
+    }
+
+    private void sendNotification(AbstractBuild build) {
+        System.out.print(createPayload(build));
+    }
+
+    private JSONObject createPayload(AbstractBuild build) {
+        JSONObject jsonObject= new JSONObject();
+        String runUrl = build.getUrl();
+
+        jsonObject.put("projectName", build.getProject().getDisplayName());
+        jsonObject.put("displayName", build.getDisplayName());
+
+        jsonObject.put("status", build.getResult().toString());
+        jsonObject.put("duration", build.getDurationString());
+        jsonObject.put("runURL", runUrl);
+//        jsonObject.put("causeAction", causesString);
+
+        JSONObject changes = getChanges(build);
+        jsonObject.put("changes", changes);
+        return jsonObject;
+    }
+
+    private JSONObject getCauses(AbstractBuild b) {
+        JSONObject jsonObject = new JSONObject();
+//        jsonObject.put("isSCM", b.);
+        List<Cause> causes = b.getCauses();
+        StringBuilder causesString = new StringBuilder();
+        causes.forEach((cause) -> {
+            causesString.append(cause.getShortDescription()).append("\n");
+        });
+        return jsonObject;
+    }
+
+    JSONObject getChanges(AbstractBuild r) {
+        if (!r.hasChangeSetComputed()) {
+            return null; // FIXME: Check when no-changeset will be there. Author and files changes should be present
+        }
+        ChangeLogSet changeSet = r.getChangeSet();
+        List<Entry> entries = new LinkedList<>();
+        Set<AffectedFile> files = new HashSet<>();
+        for (Object o : changeSet.getItems()) {
+            Entry entry = (Entry) o;
+            entries.add(entry);
+            if (CollectionUtils.isNotEmpty(entry.getAffectedFiles())) {
+                files.addAll(entry.getAffectedFiles());
+            }
+        }
+        if (entries.isEmpty()) {
+            return null;
+        }
+        Set<String> authors = new HashSet<>();
+        for (Entry entry : entries) {
+            authors.add(entry.getAuthor().getDisplayName());
+        }
+
+        JSONObject json = new JSONObject();
+        json.put("authors", authors);
+        json.put("filesCount", files.size());
+
+        return json;
     }
 
     // Overridden for better type safety.
