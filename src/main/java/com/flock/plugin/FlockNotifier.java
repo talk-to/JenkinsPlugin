@@ -156,12 +156,17 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         CauseAction causeAction = b.getAction(CauseAction.class);
         if (causeAction != null) {
             Cause scmCause = causeAction.findCause(SCMTrigger.SCMTriggerCause.class);
+            StringBuilder causeActionStringBuilder = new StringBuilder();
+            causeAction.getCauses().forEach( (cause) -> {
+                causeActionStringBuilder.append(cause.getShortDescription());
+            });
+            String causeActionString = causeActionStringBuilder.toString();
             if (scmCause == null) {
                 jsonObject.put("isSCM", false);
             } else {
                 jsonObject.put("isSCM", true);
-                jsonObject.put("other", scmCause.getShortDescription());
             }
+            jsonObject.put("other", causeActionString);
         }
         return jsonObject;
     }
