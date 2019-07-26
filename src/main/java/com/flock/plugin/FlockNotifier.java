@@ -78,17 +78,13 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        if (
-                (isNotifyOnSuccess() && build.getResult() == Result.SUCCESS) ||
-                        (isNotifyOnAborted() && build.getResult() == Result.ABORTED) ||
-                        (isNotifyOnFailure() && build.getResult() == Result.FAILURE) ||
-                        (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT) ||
-                        (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
-
-        ) {
+        if ((isNotifyOnSuccess() && build.getResult() == Result.SUCCESS)
+                || (isNotifyOnAborted() && build.getResult() == Result.ABORTED)
+                || (isNotifyOnFailure() && build.getResult() == Result.FAILURE)
+                || (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT)
+                || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)) {
             sendNotification(build, false);
         }
-
         return true;
     }
 
