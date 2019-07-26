@@ -86,7 +86,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         try {
             makeRequest(payload);
         } catch (IOException e) {
-            System.out.println("Ran into an IOException" + e.getLocalizedMessage());
+            System.out.println("Ran into an IOException" + e.getStackTrace());
         }
     }
 
