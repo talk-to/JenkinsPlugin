@@ -4,6 +4,7 @@ import groovy.json.JsonOutput;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.model.*;
+import hudson.scm.ChangeLogSet.Entry;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.BuildStepDescriptor;
@@ -12,20 +13,13 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import hudson.scm.ChangeLogSet.*;
-import hudson.scm.ChangeLogSet;
-
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
-import org.apache.commons.collections.CollectionUtils;
-
-
 
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.StaplerRequest;
@@ -170,30 +164,17 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     }
 
     JSONObject getChanges(AbstractBuild build) {
-        if (!build.hasChangeSetComputed()) {
-            return null; // FIXME: Check when no-changeset will be there. Author and files changes should be present
-        }
-        ChangeLogSet changeSet = build.getChangeSet();
-        List<Entry> entries = new LinkedList<>();
-        Set<AffectedFile> files = new HashSet<>();
-        for (Object o : changeSet.getItems()) {
-            Entry entry = (Entry) o;
-            entries.add(entry);
-            if (CollectionUtils.isNotEmpty(entry.getAffectedFiles())) {
-                files.addAll(entry.getAffectedFiles());
-            }
-        }
-        if (entries.isEmpty()) {
-            return null;
-        }
-        Set<String> authors = new HashSet<>();
-        for (Entry entry : entries) {
+        ArrayList<String> authors = new ArrayList<String>();
+        HashSet<String> affectedPaths = new HashSet<String>();
+        for (Object item : build.getChangeSet().getItems()) {
+            Entry entry = (Entry) item;
             authors.add(entry.getAuthor().getDisplayName());
+            affectedPaths.addAll(entry.getAffectedPaths());
         }
 
         JSONObject json = new JSONObject();
         json.put("authors", authors);
-        json.put("filesCount", files.size());
+        json.put("filesCount", affectedPaths.size());
 
         return json;
     }
