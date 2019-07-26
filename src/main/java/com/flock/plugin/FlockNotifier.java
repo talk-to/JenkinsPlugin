@@ -1,20 +1,19 @@
 package com.flock.plugin;
 
-import groovy.json.JsonOutput;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.model.*;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.tasks.BuildStepDescriptor;
+import hudson.triggers.SCMTrigger;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
-
+import hudson.model.Cause;
 import java.io.BufferedReader;
 import java.io.IOException;
 import hudson.scm.ChangeLogSet.*;
 import hudson.scm.ChangeLogSet;
-
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -164,12 +163,16 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private JSONObject getCauses(AbstractBuild b) {
         JSONObject jsonObject = new JSONObject();
-//        jsonObject.put("isSCM", b.getCause().sc);
-        List<Cause> causes = b.getCauses();
-        StringBuilder causesString = new StringBuilder();
-        causes.forEach((cause) -> {
-            causesString.append(cause.getShortDescription()).append("\n");
-        });
+        CauseAction causeAction = b.getAction(CauseAction.class);
+        if (causeAction != null) {
+            Cause scmCause = causeAction.findCause(SCMTrigger.SCMTriggerCause.class);
+            if (scmCause == null) {
+                jsonObject.put("isSCM", false);
+            } else {
+                jsonObject.put("isSCM", true);
+                jsonObject.put("other", scmCause.getShortDescription());
+            }
+        }
         return jsonObject;
     }
 
