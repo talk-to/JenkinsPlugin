@@ -7,6 +7,7 @@ import hudson.scm.ChangeLogSet.Entry;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
+import hudson.triggers.SCMTrigger;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -20,7 +21,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 
 public class FlockNotifier extends hudson.tasks.Recorder {
 
@@ -152,12 +152,21 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private JSONObject getCauses(AbstractBuild b) {
         JSONObject jsonObject = new JSONObject();
-//        jsonObject.put("isSCM", b.getCause().sc);
-        List<Cause> causes = b.getCauses();
-        StringBuilder causesString = new StringBuilder();
-        causes.forEach((cause) -> {
-            causesString.append(cause.getShortDescription()).append("\n");
-        });
+        CauseAction causeAction = b.getAction(CauseAction.class);
+        if (causeAction != null) {
+            Cause scmCause = causeAction.findCause(SCMTrigger.SCMTriggerCause.class);
+            StringBuilder causeActionStringBuilder = new StringBuilder();
+            causeAction.getCauses().forEach( (cause) -> {
+                causeActionStringBuilder.append(cause.getShortDescription());
+            });
+            String causeActionString = causeActionStringBuilder.toString();
+            if (scmCause == null) {
+                jsonObject.put("isSCM", false);
+            } else {
+                jsonObject.put("isSCM", true);
+            }
+            jsonObject.put("other", causeActionString);
+        }
         return jsonObject;
     }
 
