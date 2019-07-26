@@ -1,5 +1,6 @@
 package com.flock.plugin;
 
+import groovy.json.JsonOutput;
 import hudson.Launcher;
 import hudson.Extension;
 import hudson.model.*;
@@ -8,9 +9,16 @@ import hudson.tasks.Publisher;
 import hudson.tasks.BuildStepDescriptor;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import hudson.scm.ChangeLogSet.*;
 import hudson.scm.ChangeLogSet;
+
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,7 +56,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return webhookUrl;
     }
 
-    public Boolean isNotifyOnStart() { return notifyOnStart; }
+    public boolean isNotifyOnStart() { return notifyOnStart; }
 
     public boolean isNotifyOnSuccess() { return notifyOnSuccess; }
 
@@ -63,27 +71,77 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         listener.getLogger().println("Build started");
+        createPayload(build, true);
         return super.prebuild(build, listener);
     }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        sendNotification(build);
+        sendNotification(build, false);
         return true;
     }
 
-    private void sendNotification(AbstractBuild build) {
-        System.out.print(createPayload(build));
+    private void sendNotification(AbstractBuild build, boolean buildStarted) {
+        System.out.print(createPayload(build, buildStarted));
+        JSONObject payload = createPayload(build, buildStarted);
+        try {
+            makeRequest(payload);
+        } catch (IOException e) {
+            System.out.println("Ran into an IOException" + e.getLocalizedMessage());
+        }
     }
 
-    private JSONObject createPayload(AbstractBuild build) {
+    private void makeRequest(JSONObject payload) throws IOException {
+        URL url = new URL(webhookUrl);
+
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("POST");
+        con.setRequestProperty("Content-Type", "application/json");
+
+        // For POST only - START
+        con.setDoOutput(true);
+
+        OutputStream os = con.getOutputStream();
+        os.write(payload.toString().getBytes());
+        os.flush();
+        os.close();
+        // For POST only - END
+
+        int responseCode = con.getResponseCode();
+        System.out.println("POST Response Code :: " + responseCode);
+
+        if (responseCode == HttpURLConnection.HTTP_OK) { //success
+            BufferedReader in = new BufferedReader(new InputStreamReader(
+                    con.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            // print result
+            System.out.println(response.toString());
+        } else {
+            System.out.println("POST request not worked");
+        }
+    }
+
+    private JSONObject createPayload(AbstractBuild build, boolean buildStarted) {
         JSONObject jsonObject= new JSONObject();
         String runUrl = build.getUrl();
+        String status = new String();
+        if (buildStarted) {
+            status = "STARTED";
+        } else {
+            status = build.getResult().toString();
+        }
 
         jsonObject.put("projectName", build.getProject().getDisplayName());
         jsonObject.put("displayName", build.getDisplayName());
 
-        jsonObject.put("status", build.getResult().toString());
+        jsonObject.put("status", status);
         jsonObject.put("duration", build.getDurationString());
         jsonObject.put("runURL", runUrl);
 //        jsonObject.put("causeAction", causesString);
@@ -95,7 +153,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private JSONObject getCauses(AbstractBuild b) {
         JSONObject jsonObject = new JSONObject();
-//        jsonObject.put("isSCM", b.);
+//        jsonObject.put("isSCM", b.getCause().sc);
         List<Cause> causes = b.getCauses();
         StringBuilder causesString = new StringBuilder();
         causes.forEach((cause) -> {
