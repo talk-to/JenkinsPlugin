@@ -9,6 +9,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
 import hudson.triggers.SCMTrigger;
+import jenkins.model.JenkinsLocationConfiguration;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -93,7 +94,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private JSONObject createPayload(AbstractBuild build, boolean buildStarted) {
         JSONObject jsonObject= new JSONObject();
-        String runUrl = build.getUrl();
+        String runUrl = build.getAbsoluteUrl();
         String status;
         String duration;
         if (buildStarted) {
@@ -135,7 +136,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         } else if (r == Result.NOT_BUILT) {
             return "not built";
         } else if (r == Result.UNSTABLE) {
-            return "aborted";
+            return "unstable";
         }
         return null;
     }
