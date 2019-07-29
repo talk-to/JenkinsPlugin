@@ -21,4 +21,10 @@
     <f:entry title="Not Built" field="notifyOnNotBuilt">
       <f:checkbox/>
     </f:entry>
+    <f:entry title="Regression" field="notifyOnRegression">
+        <f:checkbox/>
+    </f:entry>
+    <f:entry title="Back to normal" field="notifyOnBackToNormal">
+        <f:checkbox/>
+    </f:entry>
 </j:jelly>

@@ -34,9 +34,11 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private boolean notifyOnAborted;
     private boolean notifyOnFailure;
     private boolean notifyOnNotBuilt;
+    private boolean notifyOnRegression;
+    private boolean notifyOnBackToNormal;
 
     @DataBoundConstructor
-    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt) {
+    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnRegression, boolean notifyOnBackToNormal) {
         this.webhookUrl = webhookUrl;
         this.notifyOnStart = notifyOnStart;
         this.notifyOnSuccess = notifyOnSuccess;
@@ -44,6 +46,8 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         this.notifyOnAborted = notifyOnAborted;
         this.notifyOnFailure = notifyOnFailure;
         this.notifyOnNotBuilt = notifyOnNotBuilt;
+        this.notifyOnRegression = notifyOnRegression;
+        this.notifyOnBackToNormal = notifyOnBackToNormal;
     }
 
     public String getWebhookUrl() {
@@ -62,6 +66,11 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     public boolean isNotifyOnNotBuilt() { return notifyOnNotBuilt; }
 
+    public boolean isNotifyOnRegression() { return notifyOnRegression; }
+
+    public boolean isNotifyOnBackToNormal() { return notifyOnBackToNormal; }
+
+
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if (isNotifyOnStart()) {
@@ -76,7 +85,9 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 || (isNotifyOnAborted() && build.getResult() == Result.ABORTED)
                 || (isNotifyOnFailure() && build.getResult() == Result.FAILURE)
                 || (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT)
-                || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)) {
+                || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
+                || (isNotifyOnBackToNormal() && getStatusMessage(build).contains("back to normal"))
+                || (isNotifyOnRegression() && getStatusMessage(build).contains("regression"))) {
             sendNotification(build, false);
         }
         return true;
@@ -101,7 +112,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
             status = "start";
             duration = build.getDurationString();
         } else {
-            status = makeStatusString(build.getResult());
+            status = getStatusMessage(build);
             duration = getDuration(build);
         }
 
@@ -126,20 +137,69 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return Util.getTimeSpanString(buildEndTime);
     }
 
-    private String makeStatusString(Result r) {
-        if (r == Result.SUCCESS) {
-            return  "success";
-        } else if (r == Result.FAILURE) {
-            return "failure";
-        } else if (r == Result.ABORTED) {
-            return "aborted";
-        } else if (r == Result.NOT_BUILT) {
-            return "not built";
-        } else if (r == Result.UNSTABLE) {
-            return "unstable";
+    private String getStatusMessage(AbstractBuild r) {
+        Result result = r.getResult();
+        Result previousResult;
+        if(null != result) {
+            AbstractBuild lastBuild = r.getProject().getLastBuild();
+            if (lastBuild != null) {
+                Run previousBuild = lastBuild.getPreviousBuild();
+                Run previousSuccessfulBuild = r.getPreviousSuccessfulBuild();
+                boolean buildHasSucceededBefore = previousSuccessfulBuild != null;
+
+                /*
+                 * If the last build was aborted, go back to find the last non-aborted build.
+                 * This is so that aborted builds do not affect build transitions.
+                 * I.e. if build 1 was failure, build 2 was aborted and build 3 was a success the transition
+                 * should be failure -> success (and therefore back to normal) not aborted -> success.
+                 */
+                Run lastNonAbortedBuild = previousBuild;
+                while (lastNonAbortedBuild != null && lastNonAbortedBuild.getResult() == Result.ABORTED) {
+                    lastNonAbortedBuild = lastNonAbortedBuild.getPreviousBuild();
+                }
+
+
+                /* If all previous builds have been aborted, then use
+                 * SUCCESS as a default status so an aborted message is sent
+                 */
+                if (lastNonAbortedBuild == null) {
+                    previousResult = Result.SUCCESS;
+                } else {
+                    previousResult = lastNonAbortedBuild.getResult();
+                }
+
+                /* Back to normal should only be shown if the build has actually succeeded at some point.
+                 * Also, if a build was previously unstable and has now succeeded the status should be
+                 * "Back to normal"
+                 */
+                if (result == Result.SUCCESS
+                        && (previousResult == Result.FAILURE || previousResult == Result.UNSTABLE)
+                        && buildHasSucceededBefore && isNotifyOnBackToNormal()) {
+                    return "back to normal";
+                }
+                if (result == Result.SUCCESS) {
+                    return "success";
+                }
+                if (result == Result.FAILURE) {
+                    return "failure";
+                }
+                if (result == Result.ABORTED) {
+                    return "aborted";
+                }
+                if (result == Result.NOT_BUILT) {
+                    return "not built";
+                }
+                if (result == Result.UNSTABLE) {
+                    return "unstable";
+                }
+                if (lastNonAbortedBuild != null && previousResult != null && result.isWorseThan(previousResult)) {
+                    return "regression";
+                }
+            }
         }
         return null;
     }
+
 
     private void makeRequest(JSONObject payload) throws IOException {
         URL url = new URL(webhookUrl);
