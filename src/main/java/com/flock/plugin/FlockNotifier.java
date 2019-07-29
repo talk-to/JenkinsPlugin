@@ -2,6 +2,7 @@ package com.flock.plugin;
 
 import hudson.Extension;
 import hudson.Launcher;
+import hudson.Util;
 import hudson.model.*;
 import hudson.scm.ChangeLogSet.Entry;
 import hudson.tasks.BuildStepDescriptor;
@@ -63,7 +64,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if (isNotifyOnStart()) {
-            createPayload(build, true);
+            sendNotification(build, true);
         }
         return super.prebuild(build, listener);
     }
@@ -94,23 +95,49 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         JSONObject jsonObject= new JSONObject();
         String runUrl = build.getUrl();
         String status;
+        String duration;
         if (buildStarted) {
-            status = "STARTED";
+            status = "start";
+            duration = build.getDurationString();
         } else {
-            status = build.getResult().toString();
+            status = makeStatusString(build.getResult());
+            duration = getDuration(build);
         }
 
         jsonObject.put("projectName", build.getProject().getDisplayName());
         jsonObject.put("displayName", build.getDisplayName());
 
         jsonObject.put("status", status);
-        jsonObject.put("duration", build.getDurationString());
+        jsonObject.put("duration", duration);
         jsonObject.put("runURL", runUrl);
 
         jsonObject.put("changes", getChanges(build));
         jsonObject.put("causeAction", getCauses(build));
 
         return jsonObject;
+    }
+
+    private String getDuration(AbstractBuild build) {
+        long buildStartTime = build.getStartTimeInMillis();
+        long currentTimeMillis = System.currentTimeMillis();
+
+        long buildEndTime = currentTimeMillis - buildStartTime;
+        return Util.getTimeSpanString(buildEndTime);
+    }
+
+    private String makeStatusString(Result r) {
+        if (r == Result.SUCCESS) {
+            return  "success";
+        } else if (r == Result.FAILURE) {
+            return "failure";
+        } else if (r == Result.ABORTED) {
+            return "aborted";
+        } else if (r == Result.NOT_BUILT) {
+            return "not built";
+        } else if (r == Result.UNSTABLE) {
+            return "aborted";
+        }
+        return null;
     }
 
     private void makeRequest(JSONObject payload) throws IOException {
