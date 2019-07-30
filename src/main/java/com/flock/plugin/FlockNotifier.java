@@ -66,7 +66,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if (isNotifyOnStart()) {
-            sendNotification(build, listener,true);
+            sendNotification(build, listener, true);
         }
         return super.prebuild(build, listener);
     }
@@ -80,7 +80,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
                 || (isNotifyOnBackToNormal() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("back to normal"))
                 || (isNotifyOnRegression() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("regression"))) {
-            sendNotification(build, listener,false);
+            sendNotification(build, listener, false);
         }
         return true;
     }
@@ -102,7 +102,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     public DescriptorImpl getDescriptor() {
         return (DescriptorImpl)super.getDescriptor();
     }
-
 
     @Symbol("greet")
     @Extension
