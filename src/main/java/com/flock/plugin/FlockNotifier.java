@@ -94,8 +94,8 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     }
 
     private void sendNotification(AbstractBuild build, boolean buildStarted) {
-        System.out.print(createPayload(build, buildStarted));
         JSONObject payload = createPayload(build, buildStarted);
+        System.out.print(payload);
         try {
             makeRequest(payload);
         } catch (IOException e) {
@@ -106,21 +106,15 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private JSONObject createPayload(AbstractBuild build, boolean buildStarted) {
         JSONObject jsonObject= new JSONObject();
         String runUrl = build.getAbsoluteUrl();
-        String status;
-        String duration;
         if (buildStarted) {
-            status = "start";
-            duration = build.getDurationString();
+            jsonObject.put("status", "start");
         } else {
-            status = getStatusMessage(build);
-            duration = getDuration(build);
+            jsonObject.put("status", getStatusMessage(build));
+            jsonObject.put("duration", getDuration(build));
         }
 
         jsonObject.put("projectName", build.getProject().getDisplayName());
         jsonObject.put("displayName", build.getDisplayName());
-
-        jsonObject.put("status", status);
-        jsonObject.put("duration", duration);
         jsonObject.put("runURL", runUrl);
 
         jsonObject.put("changes", getChanges(build));
@@ -129,12 +123,10 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return jsonObject;
     }
 
-    private String getDuration(AbstractBuild build) {
+    private long getDuration(AbstractBuild build) {
         long buildStartTime = build.getStartTimeInMillis();
         long currentTimeMillis = System.currentTimeMillis();
-
-        long buildEndTime = currentTimeMillis - buildStartTime;
-        return Util.getTimeSpanString(buildEndTime);
+        return (currentTimeMillis - buildStartTime)/1000;
     }
 
     private String getStatusMessage(AbstractBuild r) {
