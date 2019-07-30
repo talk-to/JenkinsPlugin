@@ -94,8 +94,8 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     }
 
     private void sendNotification(AbstractBuild build, boolean buildStarted) {
-        System.out.print(createPayload(build, buildStarted));
         JSONObject payload = createPayload(build, buildStarted);
+        System.out.print(payload);
         try {
             makeRequest(payload);
         } catch (IOException e) {
