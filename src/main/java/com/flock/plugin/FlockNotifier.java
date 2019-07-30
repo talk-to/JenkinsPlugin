@@ -107,20 +107,17 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         JSONObject jsonObject= new JSONObject();
         String runUrl = build.getAbsoluteUrl();
         String status;
-        String duration;
         if (buildStarted) {
             status = "start";
-            duration = build.getDurationString();
         } else {
             status = getStatusMessage(build);
-            duration = getDuration(build);
+            jsonObject.put("duration", getDuration(build));
         }
 
         jsonObject.put("projectName", build.getProject().getDisplayName());
         jsonObject.put("displayName", build.getDisplayName());
 
         jsonObject.put("status", status);
-        jsonObject.put("duration", duration);
         jsonObject.put("runURL", runUrl);
 
         jsonObject.put("changes", getChanges(build));
