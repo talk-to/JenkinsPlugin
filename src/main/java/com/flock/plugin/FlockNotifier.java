@@ -126,12 +126,10 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return jsonObject;
     }
 
-    private String getDuration(AbstractBuild build) {
+    private long getDuration(AbstractBuild build) {
         long buildStartTime = build.getStartTimeInMillis();
         long currentTimeMillis = System.currentTimeMillis();
-
-        long buildEndTime = currentTimeMillis - buildStartTime;
-        return Util.getTimeSpanString(buildEndTime);
+        return (currentTimeMillis - buildStartTime)/1000;
     }
 
     private String getStatusMessage(AbstractBuild r) {
