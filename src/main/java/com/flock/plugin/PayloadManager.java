@@ -9,12 +9,12 @@ import java.util.HashSet;
 
 public class PayloadManager {
 
-    public static JSONObject createPayload(AbstractBuild build, boolean buildStarted, boolean shouldNotifyBackToNormal) {
+    public static JSONObject createPayload(AbstractBuild build, boolean buildStarted, BuildResult buildResult) {
         JSONObject jsonObject= new JSONObject();
         if (buildStarted) {
             jsonObject.put("status", "start");
         } else {
-            jsonObject.put("status", getStatusMessage(build, shouldNotifyBackToNormal));
+            jsonObject.put("status", buildResult.stringValue());
             jsonObject.put("duration", getDuration(build));
         }
 
@@ -33,69 +33,6 @@ public class PayloadManager {
         long currentTimeMillis = System.currentTimeMillis();
 
         return (currentTimeMillis - buildStartTime)/1000;
-    }
-
-    public static String getStatusMessage(AbstractBuild build, boolean shouldNotifyBackToNormal) {
-        Result result = build.getResult();
-        Result previousResult;
-        if(null != result) {
-            AbstractBuild lastBuild = build.getProject().getLastBuild();
-            if (lastBuild != null) {
-                Run previousBuild = lastBuild.getPreviousBuild();
-                Run previousSuccessfulBuild = build.getPreviousSuccessfulBuild();
-                boolean buildHasSucceededBefore = previousSuccessfulBuild != null;
-
-                /*
-                 * If the last build was aborted, go back to find the last non-aborted build.
-                 * This is so that aborted builds do not affect build transitions.
-                 * I.e. if build 1 was failure, build 2 was aborted and build 3 was a success the transition
-                 * should be failure -> success (and therefore back to normal) not aborted -> success.
-                 */
-                Run lastNonAbortedBuild = previousBuild;
-                while (lastNonAbortedBuild != null && lastNonAbortedBuild.getResult() == Result.ABORTED) {
-                    lastNonAbortedBuild = lastNonAbortedBuild.getPreviousBuild();
-                }
-
-
-                /* If all previous builds have been aborted, then use
-                 * SUCCESS as a default status so an aborted message is sent
-                 */
-                if (lastNonAbortedBuild == null) {
-                    previousResult = Result.SUCCESS;
-                } else {
-                    previousResult = lastNonAbortedBuild.getResult();
-                }
-
-                /* Back to normal should only be shown if the build has actually succeeded at some point.
-                 * Also, if a build was previously unstable and has now succeeded the status should be
-                 * "Back to normal"
-                 */
-                if (result == Result.SUCCESS
-                        && (previousResult == Result.FAILURE || previousResult == Result.UNSTABLE)
-                        && buildHasSucceededBefore && shouldNotifyBackToNormal) {
-                    return "back to normal";
-                }
-                if (result == Result.SUCCESS) {
-                    return "success";
-                }
-                if (result == Result.FAILURE) {
-                    return "failure";
-                }
-                if (result == Result.ABORTED) {
-                    return "aborted";
-                }
-                if (result == Result.NOT_BUILT) {
-                    return "not built";
-                }
-                if (result == Result.UNSTABLE) {
-                    return "unstable";
-                }
-                if (lastNonAbortedBuild != null && previousResult != null && result.isWorseThan(previousResult)) {
-                    return "regression";
-                }
-            }
-        }
-        return null;
     }
 
     private static JSONObject getCauses(AbstractBuild b) {

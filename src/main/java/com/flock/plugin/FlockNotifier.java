@@ -10,12 +10,7 @@ import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class FlockNotifier extends hudson.tasks.Recorder {
 
@@ -68,27 +63,91 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if (isNotifyOnStart()) {
-            sendNotification(build, listener, true);
+            sendNotification(build, listener, true, null);
         }
         return super.prebuild(build, listener);
     }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        if ((isNotifyOnSuccess() && build.getResult() == Result.SUCCESS)
-                || (isNotifyOnAborted() && build.getResult() == Result.ABORTED)
-                || (isNotifyOnFailure() && build.getResult() == Result.FAILURE)
-                || (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT)
-                || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
-                || (isNotifyOnBackToNormal() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("back to normal"))
-                || (isNotifyOnRegression() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("regression"))) {
-            sendNotification(build, listener, false);
+        BuildResult buildResult = getBuildResult(build);
+        if ((isNotifyOnSuccess() && buildResult == BuildResult.SUCCESS)
+                || (isNotifyOnAborted() && buildResult == BuildResult.ABORTED)
+                || (isNotifyOnFailure() && buildResult == BuildResult.FAILURE)
+                || (isNotifyOnNotBuilt() && buildResult == BuildResult.NOT_BUILT)
+                || (isNotifyOnUnstable() && buildResult == BuildResult.UNSTABLE)
+                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)
+                || (isNotifyOnRegression() && buildResult == BuildResult.REGRESSION)) {
+            sendNotification(build, listener, false, buildResult);
         }
         return true;
     }
 
-    private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted) {
-        JSONObject payload = PayloadManager.createPayload(build, buildStarted, isNotifyOnBackToNormal());
+    private BuildResult getBuildResult(AbstractBuild build) {
+        Result result = build.getResult();
+        Result previousResult;
+        if(null != result) {
+            AbstractBuild lastBuild = build.getProject().getLastBuild();
+            if (lastBuild != null) {
+                Run previousBuild = lastBuild.getPreviousBuild();
+                Run previousSuccessfulBuild = build.getPreviousSuccessfulBuild();
+                boolean buildHasSucceededBefore = previousSuccessfulBuild != null;
+
+                /*
+                 * If the last build was aborted, go back to find the last non-aborted build.
+                 * This is so that aborted builds do not affect build transitions.
+                 * I.e. if build 1 was failure, build 2 was aborted and build 3 was a success the transition
+                 * should be failure -> success (and therefore back to normal) not aborted -> success.
+                 */
+                Run lastNonAbortedBuild = previousBuild;
+                while (lastNonAbortedBuild != null && lastNonAbortedBuild.getResult() == Result.ABORTED) {
+                    lastNonAbortedBuild = lastNonAbortedBuild.getPreviousBuild();
+                }
+
+
+                /* If all previous builds have been aborted, then use
+                 * SUCCESS as a default status so an aborted message is sent
+                 */
+                if (lastNonAbortedBuild == null) {
+                    previousResult = Result.SUCCESS;
+                } else {
+                    previousResult = lastNonAbortedBuild.getResult();
+                }
+
+                /* Back to normal should only be shown if the build has actually succeeded at some point.
+                 * Also, if a build was previously unstable and has now succeeded the status should be
+                 * "Back to normal"
+                 */
+                if (result == Result.SUCCESS
+                        && (previousResult == Result.FAILURE || previousResult == Result.UNSTABLE)
+                        && buildHasSucceededBefore && isNotifyOnBackToNormal()) {
+                    return BuildResult.BACK_TO_NORMAL;
+                }
+                if (result == Result.SUCCESS) {
+                    return BuildResult.SUCCESS;
+                }
+                if (result == Result.FAILURE) {
+                    return BuildResult.FAILURE;
+                }
+                if (result == Result.ABORTED) {
+                    return BuildResult.ABORTED;
+                }
+                if (result == Result.NOT_BUILT) {
+                    return BuildResult.NOT_BUILT;
+                }
+                if (result == Result.UNSTABLE) {
+                    return BuildResult.UNSTABLE;
+                }
+                if (lastNonAbortedBuild != null && previousResult != null && result.isWorseThan(previousResult)) {
+                    return BuildResult.REGRESSION;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted, BuildResult buildResult) {
+        JSONObject payload = PayloadManager.createPayload(build, buildStarted, buildResult);
         listener.getLogger().print(payload);
         try {
             RequestsManager.sendNotification(webhookUrl, payload, listener);
