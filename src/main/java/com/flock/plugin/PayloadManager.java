@@ -6,6 +6,7 @@ import hudson.triggers.SCMTrigger;
 import net.sf.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Set;
 
 public class PayloadManager {
 
@@ -56,8 +57,8 @@ public class PayloadManager {
     }
 
     private static JSONObject getChanges(AbstractBuild build) {
-        ArrayList<String> authors = new ArrayList<String>();
-        HashSet<String> affectedPaths = new HashSet<String>();
+        HashSet<String> authors = new HashSet();
+        HashSet<String> affectedPaths = new HashSet();
         for (Object item : build.getChangeSet().getItems()) {
             ChangeLogSet.Entry entry = (ChangeLogSet.Entry) item;
             authors.add(entry.getAuthor().getDisplayName());
