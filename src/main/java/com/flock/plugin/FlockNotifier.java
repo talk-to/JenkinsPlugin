@@ -42,6 +42,8 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         this.notifyOnBackToNormal = notifyOnBackToNormal;
     }
 
+    // Getter methods below need to public for Config.jelly to fetch values if persisted.
+
     public String getWebhookUrl() {
         return webhookUrl;
     }
@@ -89,7 +91,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         JSONObject payload = PayloadManager.createPayload(build, buildStarted, isNotifyOnBackToNormal());
         listener.getLogger().print(payload);
         try {
-            makeRequest(payload, listener);
+            RequestsManager.sendNotification(webhookUrl, payload, listener);
         } catch (IOException e) {
             listener.getLogger().print("Ran into an IOException" + e.getStackTrace());
         }
@@ -128,41 +130,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.NONE;
-    }
-
-    private void makeRequest(JSONObject payload, BuildListener listener) throws IOException {
-        URL url = new URL(webhookUrl);
-
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("POST");
-        con.setRequestProperty("Content-Type", "application/json");
-
-        // For POST only - START
-        con.setDoOutput(true);
-
-        OutputStream os = con.getOutputStream();
-        os.write(payload.toString().getBytes());
-        os.flush();
-        os.close();
-        // For POST only - END
-
-        int responseCode = con.getResponseCode();
-        listener.getLogger().print("POST Response Code :: " + responseCode);
-
-        if (responseCode == HttpURLConnection.HTTP_OK) { //success
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-            listener.getLogger().print(response.toString());
-        } else {
-            listener.getLogger().print("POST request not worked");
-        }
     }
 
 }
