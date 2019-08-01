@@ -84,7 +84,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private BuildResult getBuildResult(AbstractBuild build) {
         Result result = build.getResult();
         Result lastResult;
-        if(result != null) {
+        if (result != null) {
             AbstractBuild lastBuild = build.getProject().getLastBuild();
             if (lastBuild != null) {
                 Run previousBuild = lastBuild.getPreviousBuild();
