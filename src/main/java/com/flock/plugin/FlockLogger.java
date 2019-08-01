@@ -6,7 +6,7 @@ public class FlockLogger {
     private PrintStream printStream;
 
     FlockLogger(PrintStream printStream) {
-        this.printStream = printStream
+        this.printStream = printStream;
     }
 
     public void log(Object message) {
