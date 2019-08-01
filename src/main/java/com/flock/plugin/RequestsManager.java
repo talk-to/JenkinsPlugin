@@ -11,7 +11,7 @@ import java.net.URL;
 
 public class RequestsManager {
 
-    public static void sendNotification(String webhookUrl, JSONObject payload, BuildListener listener) throws IOException {
+    public static void sendNotification(String webhookUrl, JSONObject payload, FlockLogger logger) throws IOException {
         URL url = new URL(webhookUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
@@ -27,7 +27,7 @@ public class RequestsManager {
         // For POST only - END
 
         int responseCode = con.getResponseCode();
-        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "POST Response Code : " + responseCode);
+        logger.log("POST Response code : " + responseCode);
 
         if (responseCode == HttpURLConnection.HTTP_OK) { //success
             BufferedReader in = new BufferedReader(new InputStreamReader(
@@ -39,9 +39,9 @@ public class RequestsManager {
                 response.append(inputLine);
             }
             in.close();
-            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + response.toString());
+            logger.log(response.toString());
         } else {
-            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "POST request not worked. Got following response code - " + con.getResponseMessage());
+            logger.log("POST request not worked. Got following message : " + con.getResponseMessage());
         }
     }
 }

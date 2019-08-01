@@ -25,7 +25,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private boolean notifyOnBackToNormal;
 
     @DataBoundConstructor
-    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnRegression, boolean notifyOnBackToNormal) {
+    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnBackToNormal) {
         this.webhookUrl = webhookUrl;
         this.notifyOnStart = notifyOnStart;
         this.notifyOnSuccess = notifyOnSuccess;
@@ -33,7 +33,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         this.notifyOnAborted = notifyOnAborted;
         this.notifyOnFailure = notifyOnFailure;
         this.notifyOnNotBuilt = notifyOnNotBuilt;
-        this.notifyOnRegression = notifyOnRegression;
         this.notifyOnBackToNormal = notifyOnBackToNormal;
     }
 
@@ -76,8 +75,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 || (isNotifyOnFailure() && buildResult == BuildResult.FAILURE)
                 || (isNotifyOnNotBuilt() && buildResult == BuildResult.NOT_BUILT)
                 || (isNotifyOnUnstable() && buildResult == BuildResult.UNSTABLE)
-                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)
-                || (isNotifyOnRegression() && buildResult == BuildResult.REGRESSION)) {
+                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)) {
             sendNotification(build, listener, false, buildResult);
         }
         return true;
@@ -124,21 +122,19 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 if (result == Result.UNSTABLE) {
                     return BuildResult.UNSTABLE;
                 }
-                if (lastNonAbortedBuild != null && lastResult != null && result.isWorseThan(lastResult)) {
-                    return BuildResult.REGRESSION;
-                }
             }
         }
         return null;
     }
 
     private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted, BuildResult buildResult) {
+        FlockLogger logger = new FlockLogger(listener.getLogger());
         JSONObject payload = PayloadManager.createPayload(build, buildStarted, buildResult);
-        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + payload);
+        logger.log(payload);
         try {
-            RequestsManager.sendNotification(webhookUrl, payload, listener);
+            RequestsManager.sendNotification(webhookUrl, payload, logger);
         } catch (IOException e) {
-            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "Ran into an IOException" + e.getStackTrace());
+            logger.log("Ran into an IOException" + e.getStackTrace());
         }
     }
 

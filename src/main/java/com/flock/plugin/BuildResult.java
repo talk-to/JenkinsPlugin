@@ -14,10 +14,12 @@ public enum BuildResult {
                 return "aborted";
             case NOT_BUILT:
                 return "not built";
-            case UNSTABLE:
-                return "unstable";
             case REGRESSION:
                 return "regression";
+            case UNSTABLE:
+                return "unstable";
+            case BACK_TO_NORMAL:
+                return "back to normal";
         }
         return null;
     }
