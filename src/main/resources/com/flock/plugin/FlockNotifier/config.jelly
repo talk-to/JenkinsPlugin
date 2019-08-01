@@ -4,22 +4,22 @@
         <f:textbox />
     </f:entry>
     <f:entry title="Start" field="notifyOnStart">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Success" field="notifyOnSuccess">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Unstable" field="notifyOnUnstable">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Aborted" field="notifyOnAborted">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Failure" field="notifyOnFailure">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Not Built" field="notifyOnNotBuilt">
-      <f:checkbox/>
+        <f:checkbox/>
     </f:entry>
     <f:entry title="Back to normal" field="notifyOnBackToNormal">
         <f:checkbox/>
