@@ -10,12 +10,7 @@ import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class FlockNotifier extends hudson.tasks.Recorder {
 
@@ -30,7 +25,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private boolean notifyOnBackToNormal;
 
     @DataBoundConstructor
-    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnRegression, boolean notifyOnBackToNormal) {
+    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnBackToNormal) {
         this.webhookUrl = webhookUrl;
         this.notifyOnStart = notifyOnStart;
         this.notifyOnSuccess = notifyOnSuccess;
@@ -38,9 +33,10 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         this.notifyOnAborted = notifyOnAborted;
         this.notifyOnFailure = notifyOnFailure;
         this.notifyOnNotBuilt = notifyOnNotBuilt;
-        this.notifyOnRegression = notifyOnRegression;
         this.notifyOnBackToNormal = notifyOnBackToNormal;
     }
+
+    // Getter methods below need to public for Config.jelly to fetch values if persisted.
 
     public String getWebhookUrl() {
         return webhookUrl;
@@ -66,32 +62,79 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
         if (isNotifyOnStart()) {
-            sendNotification(build, listener, true);
+            sendNotification(build, listener, true, null);
         }
         return super.prebuild(build, listener);
     }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-        if ((isNotifyOnSuccess() && build.getResult() == Result.SUCCESS)
-                || (isNotifyOnAborted() && build.getResult() == Result.ABORTED)
-                || (isNotifyOnFailure() && build.getResult() == Result.FAILURE)
-                || (isNotifyOnNotBuilt() && build.getResult() == Result.NOT_BUILT)
-                || (isNotifyOnUnstable() && build.getResult() == Result.UNSTABLE)
-                || (isNotifyOnBackToNormal() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("back to normal"))
-                || (isNotifyOnRegression() && PayloadManager.getStatusMessage(build, isNotifyOnBackToNormal()).contains("regression"))) {
-            sendNotification(build, listener, false);
+        BuildResult buildResult = getBuildResult(build);
+        if ((isNotifyOnSuccess() && buildResult == BuildResult.SUCCESS)
+                || (isNotifyOnAborted() && buildResult == BuildResult.ABORTED)
+                || (isNotifyOnFailure() && buildResult == BuildResult.FAILURE)
+                || (isNotifyOnNotBuilt() && buildResult == BuildResult.NOT_BUILT)
+                || (isNotifyOnUnstable() && buildResult == BuildResult.UNSTABLE)
+                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)) {
+            sendNotification(build, listener, false, buildResult);
         }
         return true;
     }
 
-    private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted) {
-        JSONObject payload = PayloadManager.createPayload(build, buildStarted, isNotifyOnBackToNormal());
-        listener.getLogger().print(payload);
+    private BuildResult getBuildResult(AbstractBuild build) {
+        Result result = build.getResult();
+        Result lastResult;
+        if(result != null) {
+            AbstractBuild lastBuild = build.getProject().getLastBuild();
+            if (lastBuild != null) {
+                Run previousBuild = lastBuild.getPreviousBuild();
+                Run previousSuccessfulBuild = build.getPreviousSuccessfulBuild();
+                boolean buildHasEverSucceeded = previousSuccessfulBuild != null;
+
+                Run lastNonAbortedBuild = previousBuild;
+                while (lastNonAbortedBuild != null && lastNonAbortedBuild.getResult() == Result.ABORTED) {
+                    lastNonAbortedBuild = lastNonAbortedBuild.getPreviousBuild();
+                }
+
+                if (lastNonAbortedBuild == null) {
+                    lastResult = Result.SUCCESS;
+                } else {
+                    lastResult = lastNonAbortedBuild.getResult();
+                }
+
+                if (result == Result.SUCCESS
+                        && (lastResult == Result.FAILURE || lastResult == Result.UNSTABLE)
+                        && buildHasEverSucceeded && isNotifyOnBackToNormal()) {
+                    return BuildResult.BACK_TO_NORMAL;
+                }
+                if (result == Result.SUCCESS) {
+                    return BuildResult.SUCCESS;
+                }
+                if (result == Result.FAILURE) {
+                    return BuildResult.FAILURE;
+                }
+                if (result == Result.ABORTED) {
+                    return BuildResult.ABORTED;
+                }
+                if (result == Result.NOT_BUILT) {
+                    return BuildResult.NOT_BUILT;
+                }
+                if (result == Result.UNSTABLE) {
+                    return BuildResult.UNSTABLE;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted, BuildResult buildResult) {
+        FlockLogger logger = new FlockLogger(listener.getLogger());
+        JSONObject payload = PayloadManager.createPayload(build, buildStarted, buildResult);
+        logger.log(payload);
         try {
-            makeRequest(payload, listener);
+            RequestsManager.sendNotification(webhookUrl, payload, logger);
         } catch (IOException e) {
-            listener.getLogger().print("Ran into an IOException" + e.getStackTrace());
+            logger.log("Ran into an IOException" + e.getStackTrace());
         }
     }
 
@@ -128,41 +171,6 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     @Override
     public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.NONE;
-    }
-
-    private void makeRequest(JSONObject payload, BuildListener listener) throws IOException {
-        URL url = new URL(webhookUrl);
-
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("POST");
-        con.setRequestProperty("Content-Type", "application/json");
-
-        // For POST only - START
-        con.setDoOutput(true);
-
-        OutputStream os = con.getOutputStream();
-        os.write(payload.toString().getBytes());
-        os.flush();
-        os.close();
-        // For POST only - END
-
-        int responseCode = con.getResponseCode();
-        listener.getLogger().print("POST Response Code :: " + responseCode);
-
-        if (responseCode == HttpURLConnection.HTTP_OK) { //success
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-            listener.getLogger().print(response.toString());
-        } else {
-            listener.getLogger().print("POST request not worked");
-        }
     }
 
 }
