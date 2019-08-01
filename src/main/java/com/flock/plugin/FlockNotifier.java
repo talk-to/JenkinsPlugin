@@ -107,19 +107,16 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                         && buildHasEverSucceeded && isNotifyOnBackToNormal()) {
                     return BuildResult.BACK_TO_NORMAL;
                 }
+
                 if (result == Result.SUCCESS) {
                     return BuildResult.SUCCESS;
-                }
-                if (result == Result.FAILURE) {
+                } else if (result == Result.FAILURE) {
                     return BuildResult.FAILURE;
-                }
-                if (result == Result.ABORTED) {
+                } else if (result == Result.ABORTED) {
                     return BuildResult.ABORTED;
-                }
-                if (result == Result.NOT_BUILT) {
+                } else if (result == Result.NOT_BUILT) {
                     return BuildResult.NOT_BUILT;
-                }
-                if (result == Result.UNSTABLE) {
+                } else if (result == Result.UNSTABLE) {
                     return BuildResult.UNSTABLE;
                 }
             }
