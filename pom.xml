@@ -13,6 +13,7 @@
     <artifactId>flock</artifactId>
     <version>1.0.0</version>
     <packaging>hpi</packaging>
+    <description>Allows users to send build notifications via Flock</description>
     <properties>
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
         <jenkins.version>2.164.1</jenkins.version>
