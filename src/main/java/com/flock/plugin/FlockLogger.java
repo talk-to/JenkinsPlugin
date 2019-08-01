@@ -3,6 +3,7 @@ package com.flock.plugin;
 import java.io.PrintStream;
 
 public class FlockLogger {
+    private static String FLOCK_LOGS_IDENTIFIER = "* FLOCK LOGS *  : ";
     private PrintStream printStream;
 
     FlockLogger(PrintStream printStream) {
@@ -10,7 +11,7 @@ public class FlockLogger {
     }
 
     public void log(Object message) {
-        printStream.println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + message);
+        printStream.println(FlockLogger.FLOCK_LOGS_IDENTIFIER + message);
     }
 
 }
