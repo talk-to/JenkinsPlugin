@@ -85,42 +85,28 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private BuildResult getBuildResult(AbstractBuild build) {
         Result result = build.getResult();
-        Result previousResult;
-        if(null != result) {
+        Result lastResult;
+        if(result != null) {
             AbstractBuild lastBuild = build.getProject().getLastBuild();
             if (lastBuild != null) {
                 Run previousBuild = lastBuild.getPreviousBuild();
                 Run previousSuccessfulBuild = build.getPreviousSuccessfulBuild();
-                boolean buildHasSucceededBefore = previousSuccessfulBuild != null;
+                boolean buildHasEverSucceeded = previousSuccessfulBuild != null;
 
-                /*
-                 * If the last build was aborted, go back to find the last non-aborted build.
-                 * This is so that aborted builds do not affect build transitions.
-                 * I.e. if build 1 was failure, build 2 was aborted and build 3 was a success the transition
-                 * should be failure -> success (and therefore back to normal) not aborted -> success.
-                 */
                 Run lastNonAbortedBuild = previousBuild;
                 while (lastNonAbortedBuild != null && lastNonAbortedBuild.getResult() == Result.ABORTED) {
                     lastNonAbortedBuild = lastNonAbortedBuild.getPreviousBuild();
                 }
 
-
-                /* If all previous builds have been aborted, then use
-                 * SUCCESS as a default status so an aborted message is sent
-                 */
                 if (lastNonAbortedBuild == null) {
-                    previousResult = Result.SUCCESS;
+                    lastResult = Result.SUCCESS;
                 } else {
-                    previousResult = lastNonAbortedBuild.getResult();
+                    lastResult = lastNonAbortedBuild.getResult();
                 }
 
-                /* Back to normal should only be shown if the build has actually succeeded at some point.
-                 * Also, if a build was previously unstable and has now succeeded the status should be
-                 * "Back to normal"
-                 */
                 if (result == Result.SUCCESS
-                        && (previousResult == Result.FAILURE || previousResult == Result.UNSTABLE)
-                        && buildHasSucceededBefore && isNotifyOnBackToNormal()) {
+                        && (lastResult == Result.FAILURE || lastResult == Result.UNSTABLE)
+                        && buildHasEverSucceeded && isNotifyOnBackToNormal()) {
                     return BuildResult.BACK_TO_NORMAL;
                 }
                 if (result == Result.SUCCESS) {
@@ -138,7 +124,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 if (result == Result.UNSTABLE) {
                     return BuildResult.UNSTABLE;
                 }
-                if (lastNonAbortedBuild != null && previousResult != null && result.isWorseThan(previousResult)) {
+                if (lastNonAbortedBuild != null && lastResult != null && result.isWorseThan(lastResult)) {
                     return BuildResult.REGRESSION;
                 }
             }
@@ -148,7 +134,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted, BuildResult buildResult) {
         JSONObject payload = PayloadManager.createPayload(build, buildStarted, buildResult);
-        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + payload + "\n");
+        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + payload);
         try {
             RequestsManager.sendNotification(webhookUrl, payload, listener);
         } catch (IOException e) {
