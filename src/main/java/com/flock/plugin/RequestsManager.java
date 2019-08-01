@@ -28,7 +28,7 @@ public class RequestsManager {
         // For POST only - END
 
         int responseCode = con.getResponseCode();
-        listener.getLogger().print("POST Response Code :: " + responseCode);
+        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "POST Response Code : " + responseCode);
 
         if (responseCode == HttpURLConnection.HTTP_OK) { //success
             BufferedReader in = new BufferedReader(new InputStreamReader(
@@ -40,9 +40,9 @@ public class RequestsManager {
                 response.append(inputLine);
             }
             in.close();
-            listener.getLogger().print(response.toString());
+            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + response.toString());
         } else {
-            listener.getLogger().print("POST request not worked");
+            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "POST request not worked. Got following response code - " + con.getResponseMessage());
         }
     }
 }

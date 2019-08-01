@@ -148,11 +148,11 @@ public class FlockNotifier extends hudson.tasks.Recorder {
 
     private void sendNotification(AbstractBuild build, BuildListener listener, boolean buildStarted, BuildResult buildResult) {
         JSONObject payload = PayloadManager.createPayload(build, buildStarted, buildResult);
-        listener.getLogger().print(payload);
+        listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + payload + "\n");
         try {
             RequestsManager.sendNotification(webhookUrl, payload, listener);
         } catch (IOException e) {
-            listener.getLogger().print("Ran into an IOException" + e.getStackTrace());
+            listener.getLogger().println(FlockLoggerInformationProvider.FLOCK_LOGS_IDENTIFIER + "Ran into an IOException" + e.getStackTrace());
         }
     }
 
