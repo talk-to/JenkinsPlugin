@@ -19,7 +19,7 @@ You can configure this plugin for each project on your Jenkins server.
 
 ## Usage
 Please follow this guide to generate a Webhook URL to be used in the plugin.
-*https://github.com/talk-to/janus/blob/f2b1cbc3e6ce746e497832ff1bdf96c4c1ed1454/README.md*
+*https://github.com/talk-to/janus/blob/f2b1cbc3e6ce746e497832ff1bdf96c4c1ed1454/README.md* (Private repository)
 
 After generating the webhook, follow these steps.
 
