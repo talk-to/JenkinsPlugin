@@ -25,7 +25,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
     private boolean notifyOnBackToNormal;
 
     @DataBoundConstructor
-    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnBackToNormal) {
+    public FlockNotifier(String webhookUrl, boolean notifyOnStart, boolean notifyOnSuccess, boolean notifyOnUnstable, boolean notifyOnAborted, boolean notifyOnFailure, boolean notifyOnNotBuilt, boolean notifyOnRegression, boolean notifyOnBackToNormal) {
         this.webhookUrl = webhookUrl;
         this.notifyOnStart = notifyOnStart;
         this.notifyOnSuccess = notifyOnSuccess;
@@ -33,6 +33,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         this.notifyOnAborted = notifyOnAborted;
         this.notifyOnFailure = notifyOnFailure;
         this.notifyOnNotBuilt = notifyOnNotBuilt;
+        this.notifyOnRegression = notifyOnRegression;
         this.notifyOnBackToNormal = notifyOnBackToNormal;
     }
 
@@ -75,7 +76,8 @@ public class FlockNotifier extends hudson.tasks.Recorder {
                 || (isNotifyOnFailure() && buildResult == BuildResult.FAILURE)
                 || (isNotifyOnNotBuilt() && buildResult == BuildResult.NOT_BUILT)
                 || (isNotifyOnUnstable() && buildResult == BuildResult.UNSTABLE)
-                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)) {
+                || (isNotifyOnBackToNormal() && buildResult == BuildResult.BACK_TO_NORMAL)
+                || (isNotifyOnRegression() && buildResult == BuildResult.REGRESSION)) {
             sendNotification(build, listener, false, buildResult);
         }
         return true;
