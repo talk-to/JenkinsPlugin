@@ -145,7 +145,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         return (DescriptorImpl)super.getDescriptor();
     }
 
-    @Symbol("greet")
+    @Symbol("flockNotify")
     @Extension
     public static final class DescriptorImpl extends BuildStepDescriptor<Publisher> {
 
