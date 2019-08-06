@@ -11,6 +11,7 @@ import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class FlockNotifier extends hudson.tasks.Recorder {
 
@@ -133,7 +134,7 @@ public class FlockNotifier extends hudson.tasks.Recorder {
         try {
             RequestsManager.sendNotification(webhookUrl, payload, logger);
         } catch (IOException e) {
-            logger.log("Ran into an IOException" + e.getStackTrace());
+            logger.log("Ran into an IOException" + Arrays.toString(e.getStackTrace()));
         }
     }
 

@@ -2,12 +2,12 @@ package com.flock.plugin;
 
 import hudson.model.BuildListener;
 import net.sf.json.JSONObject;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 public class RequestsManager {
 
@@ -19,19 +19,17 @@ public class RequestsManager {
 
         // For POST only - START
         con.setDoOutput(true);
-
-        OutputStream os = con.getOutputStream();
-        os.write(payload.toString().getBytes());
-        os.flush();
-        os.close();
+        Writer w = new OutputStreamWriter(con.getOutputStream(), "UTF-8");
+        w.write(payload.toString());
+        w.flush();
+        w.close();
         // For POST only - END
 
         int responseCode = con.getResponseCode();
         logger.log("POST Response code : " + responseCode);
 
         if (responseCode == HttpURLConnection.HTTP_OK) { //success
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    con.getInputStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
             String inputLine;
             StringBuffer response = new StringBuffer();
 
